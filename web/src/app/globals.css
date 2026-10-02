@@ -1,0 +1,69 @@
+:root {
+  --uf-blue: #0021a5;
+  --uf-blue-dark: #001a85;
+  --uf-orange: #fa4616;
+  --uf-orange-ink: #a62b08;
+
+  --ink: #16181d;
+  --muted: #5e6470;
+  --faint: #8a8f99;
+  --faintest: #a4a8b0;
+
+  --line: #e3e0d8;
+  --line-cool: #dce1f2;
+  --grid: #eef0f7;
+  --tint-blue: #e6eaf7;
+  --tint-orange: #fee9e2;
+  --wash-orange: #fff7f4;
+  --on-blue-muted: #c9d1f0;
+  --bar: #f4f6fc;
+  --paper: #fbfaf7;
+  --surface: #ffffff;
+
+  --good: #17684a;
+  --ok: #7e4f0e;
+  --bad: #97361f;
+  --ring-mid: #f59a3c;
+
+  --font-sans: var(--font-instrument), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--uf-orange);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -1,0 +1,156 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--uf-blue);
+}
+
+.credits {
+  color: var(--faint);
+}
+
+.empty {
+  margin: 8px 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.item {
+  position: relative;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.card:hover {
+  border-color: var(--line-cool);
+  background: var(--bar);
+}
+
+.card[data-active] {
+  border: 1.5px solid var(--uf-orange);
+  padding: 9.5px;
+  background: var(--wash-orange);
+}
+
+.ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ring) var(--deg), var(--tint-blue) 0);
+}
+
+.ringValue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  font: 600 11.5px var(--font-mono);
+  color: var(--ink);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.code {
+  font: 600 12px var(--font-mono);
+  color: var(--uf-blue);
+}
+
+.name {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prof {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--faint);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.item:hover .remove,
+.remove:focus-visible {
+  opacity: 1;
+}
+
+.remove:hover {
+  background: var(--tint-orange);
+  color: var(--uf-orange-ink);
+}
+
+@media (hover: none) {
+  .remove {
+    opacity: 1;
+  }
+}
+
+.add {
+  padding: 10px;
+  border: 1.5px dashed var(--on-blue-muted);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--uf-blue);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add:hover {
+  background: var(--bar);
+}
+
+@media (max-width: 760px) {
+  .panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
