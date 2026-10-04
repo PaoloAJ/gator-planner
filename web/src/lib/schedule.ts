@@ -1,5 +1,4 @@
-import type { Course, Day, PlannedCourse, Section } from "./types";
-import { COURSE_BY_CODE } from "./mock-data";
+import type { Course, Day, Instructor, PlannedCourse, Section } from "./types";
 
 export const WEEK: { day: Day; label: string }[] = [
   { day: "M", label: "MON" },
@@ -16,19 +15,30 @@ export function formatTime(min: number): string {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`;
 }
 
-/** First meeting as "MWF 9:35", or "Time TBA". */
+/** First meeting as "MWF 9:35", "Online", or "Time TBA". */
 export function formatSchedule(section: Section): string {
   const first = section.meetings[0];
-  if (!first) return "Time TBA";
-  return `${first.days.join("")} ${formatTime(first.begin)}`;
+  if (first) return `${first.days.join("")} ${formatTime(first.begin)}`;
+  return section.delivery === "AD" ? "Online" : "Time TBA";
+}
+
+const STAFF: Instructor = { name: "Staff", rating: null };
+
+/** The section's lead instructor; UF lists co-instructors after. */
+export function primaryInstructor(section: Section): Instructor {
+  return section.instructors[0] ?? STAFF;
+}
+
+export function sectionRating(section: Section): number | null {
+  return primaryInstructor(section).rating?.quality ?? null;
 }
 
 export function lastName(name: string): string {
   return name.split(" ").at(-1) ?? name;
 }
 
-export function findSection(course: Course, sectionId: string): Section | undefined {
-  return course.sections.find((s) => s.id === sectionId);
+export function findSection(course: Course, classNumber: number): Section | undefined {
+  return course.sections.find((s) => s.classNumber === classNumber);
 }
 
 export function sectionsOverlap(a: Section, b: Section): boolean {
@@ -44,10 +54,11 @@ export interface ResolvedEntry {
   section: Section;
 }
 
-export function resolvePlan(plan: PlannedCourse[]): ResolvedEntry[] {
-  return plan.flatMap(({ courseCode, sectionId }) => {
-    const course = COURSE_BY_CODE.get(courseCode);
-    const section = course && findSection(course, sectionId);
+/** Joins a plan with loaded course details, skipping anything not loaded. */
+export function resolvePlan(plan: PlannedCourse[], courses: Record<string, Course>): ResolvedEntry[] {
+  return plan.flatMap(({ courseCode, classNumber }) => {
+    const course = courses[courseCode];
+    const section = course && findSection(course, classNumber);
     return course && section ? [{ course, section }] : [];
   });
 }
@@ -61,9 +72,7 @@ export function conflictsWith(section: Section, entries: ResolvedEntry[], ignore
 
 /** Sections ranked best-rated first; unrated sections last. */
 export function rankSections(course: Course): Section[] {
-  return [...course.sections].sort(
-    (a, b) => (b.instructor.rmpRating ?? -1) - (a.instructor.rmpRating ?? -1),
-  );
+  return [...course.sections].sort((a, b) => (sectionRating(b) ?? -1) - (sectionRating(a) ?? -1));
 }
 
 export type RatingTone = "good" | "ok" | "bad" | "none";
@@ -78,10 +87,19 @@ export function formatRating(r: number | null): string {
 }
 
 export function averageRating(entries: ResolvedEntry[]): number | null {
-  const rated = entries.map((e) => e.section.instructor.rmpRating).filter((r): r is number => r != null);
+  const rated = entries.map((e) => sectionRating(e.section)).filter((r): r is number => r != null);
   return rated.length ? rated.reduce((a, b) => a + b, 0) / rated.length : null;
 }
 
-export function totalCredits(plan: PlannedCourse[]): number {
-  return plan.reduce((sum, p) => sum + (COURSE_BY_CODE.get(p.courseCode)?.credits ?? 0), 0);
+export function totalCredits(entries: ResolvedEntry[]): number {
+  return entries.reduce((sum, e) => sum + (e.section.creditsMax ?? e.course.credits), 0);
+}
+
+/** "3 min ago", "2 h ago", "3 days ago". */
+export function timeAgo(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  return hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
 }

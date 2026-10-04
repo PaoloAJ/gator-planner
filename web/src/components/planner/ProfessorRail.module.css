@@ -27,9 +27,20 @@
 }
 
 .prereqs {
-  margin-top: 4px;
+  display: -webkit-box;
+  margin: 4px 0 0;
+  overflow: hidden;
   font-size: 12px;
+  line-height: 1.45;
   color: var(--muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.coInstructors {
+  margin-top: -4px;
+  font-size: 11px;
+  color: var(--faint);
 }
 
 .sectionHead {

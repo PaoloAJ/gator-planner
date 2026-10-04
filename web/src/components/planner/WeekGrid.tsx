@@ -1,5 +1,11 @@
 import type { CSSProperties } from "react";
-import { WEEK, formatTime, lastName, type ResolvedEntry } from "@/lib/schedule";
+import {
+  WEEK,
+  formatTime,
+  lastName,
+  primaryInstructor,
+  type ResolvedEntry,
+} from "@/lib/schedule";
 import type { Day } from "@/lib/types";
 import styles from "./WeekGrid.module.css";
 
@@ -8,6 +14,8 @@ interface Props {
   selectedCode: string | null;
   /** An alternative section to draw as a dashed ghost. */
   preview: ResolvedEntry | null;
+  /** Shown over the grid when nothing is planned. */
+  emptyHint: string;
   onSelect: (code: string) => void;
 }
 
@@ -27,14 +35,19 @@ interface Block {
   lanes: number;
 }
 
-function blocksForDay(day: Day, entries: ResolvedEntry[], preview: ResolvedEntry | null, selectedCode: string | null) {
+function blocksForDay(
+  day: Day,
+  entries: ResolvedEntry[],
+  preview: ResolvedEntry | null,
+  selectedCode: string | null,
+) {
   const solid: Block[] = entries.flatMap(({ course, section }) =>
     section.meetings
       .filter((m) => m.days.includes(day))
       .map((m) => ({
-        key: `${section.id}-${m.begin}`,
+        key: `${section.classNumber}-${m.begin}`,
         code: course.code,
-        label: `${formatTime(m.begin)} · ${lastName(section.instructor.name)}`,
+        label: `${formatTime(m.begin)} · ${lastName(primaryInstructor(section).name)}`,
         begin: m.begin,
         end: m.end,
         accent: course.code === selectedCode,
@@ -56,9 +69,9 @@ function blocksForDay(day: Day, entries: ResolvedEntry[], preview: ResolvedEntry
     ? preview.section.meetings
         .filter((m) => m.days.includes(day))
         .map((m) => ({
-          key: `ghost-${preview.section.id}-${m.begin}`,
+          key: `ghost-${preview.section.classNumber}-${m.begin}`,
           code: preview.course.code,
-          label: `alt · ${lastName(preview.section.instructor.name)}`,
+          label: `alt · ${lastName(primaryInstructor(preview.section).name)}`,
           begin: m.begin,
           end: m.end,
           accent: true,
@@ -71,14 +84,28 @@ function blocksForDay(day: Day, entries: ResolvedEntry[], preview: ResolvedEntry
   return [...solid, ...ghosts];
 }
 
-export function WeekGrid({ entries, selectedCode, preview, onSelect }: Props) {
-  const all = [...entries, ...(preview ? [preview] : [])].flatMap((e) => e.section.meetings);
-  const start = Math.min(DEFAULT_START, ...all.map((m) => Math.floor(m.begin / 60)));
+export function WeekGrid({
+  entries,
+  selectedCode,
+  preview,
+  emptyHint,
+  onSelect,
+}: Props) {
+  const all = [...entries, ...(preview ? [preview] : [])].flatMap(
+    (e) => e.section.meetings,
+  );
+  const start = Math.min(
+    DEFAULT_START,
+    ...all.map((m) => Math.floor(m.begin / 60)),
+  );
   const end = Math.max(DEFAULT_END, ...all.map((m) => Math.ceil(m.end / 60)));
   const hours = Array.from({ length: end - start }, (_, i) => start + i);
   const unscheduled = entries.filter((e) => e.section.meetings.length === 0);
 
-  const gridStyle = { "--hour": `${HOUR_PX}px`, height: hours.length * HOUR_PX } as CSSProperties;
+  const gridStyle = {
+    "--hour": `${HOUR_PX}px`,
+    height: hours.length * HOUR_PX,
+  } as CSSProperties;
 
   return (
     <section className={styles.panel} aria-label="Weekly schedule">
@@ -91,9 +118,14 @@ export function WeekGrid({ entries, selectedCode, preview, onSelect }: Props) {
             ))}
           </div>
           <div className={styles.grid} style={gridStyle}>
+            {entries.length === 0 && (
+              <p className={styles.emptyHint}>{emptyHint}</p>
+            )}
             <div className={styles.hours} aria-hidden>
               {hours.map((h) => (
-                <span key={h}>{h === 12 ? "12p" : h > 12 ? `${h - 12}p` : `${h}a`}</span>
+                <span key={h}>
+                  {h === 12 ? "12p" : h > 12 ? `${h - 12}p` : `${h}a`}
+                </span>
               ))}
             </div>
             {WEEK.map(({ day, label }) => (
@@ -107,7 +139,12 @@ export function WeekGrid({ entries, selectedCode, preview, onSelect }: Props) {
                   } as CSSProperties;
                   const desc = `${b.code}, ${label} ${formatTime(b.begin)}–${formatTime(b.end)}`;
                   return b.ghost ? (
-                    <div key={b.key} className={styles.ghost} style={style} aria-label={`Preview: ${desc}`}>
+                    <div
+                      key={b.key}
+                      className={styles.ghost}
+                      style={style}
+                      aria-label={`Preview: ${desc}`}
+                    >
                       <span className={styles.code}>{b.code}</span>
                       <span className={styles.meta}>{b.label}</span>
                     </div>
@@ -118,7 +155,9 @@ export function WeekGrid({ entries, selectedCode, preview, onSelect }: Props) {
                       style={style}
                       data-accent={b.accent || undefined}
                       data-conflict={b.lanes > 1 || undefined}
-                      aria-label={b.lanes > 1 ? `${desc} (time conflict)` : desc}
+                      aria-label={
+                        b.lanes > 1 ? `${desc} (time conflict)` : desc
+                      }
                       onClick={() => onSelect(b.code)}
                     >
                       <span className={styles.code}>{b.code}</span>
@@ -133,11 +172,14 @@ export function WeekGrid({ entries, selectedCode, preview, onSelect }: Props) {
       </div>
       {unscheduled.length > 0 && (
         <p className={styles.note}>
-          Not on the grid (time TBA):{" "}
+          Not on the grid (online or time TBA):{" "}
           {unscheduled.map((e, i) => (
             <span key={e.course.code}>
               {i > 0 && ", "}
-              <button className={styles.noteLink} onClick={() => onSelect(e.course.code)}>
+              <button
+                className={styles.noteLink}
+                onClick={() => onSelect(e.course.code)}
+              >
                 {e.course.code}
               </button>
             </span>

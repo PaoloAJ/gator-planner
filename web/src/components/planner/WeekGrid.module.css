@@ -13,6 +13,28 @@
   min-width: 480px;
 }
 
+.grid {
+  position: relative;
+}
+
+.emptyHint {
+  position: absolute;
+  z-index: 1;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  max-width: 80%;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .head,
 .grid {
   display: grid;

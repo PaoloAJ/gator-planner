@@ -1,4 +1,11 @@
-import { formatRating, formatSchedule, formatTime, ratingTone } from "@/lib/schedule";
+import {
+  formatRating,
+  formatSchedule,
+  formatTime,
+  primaryInstructor,
+  ratingTone,
+  timeAgo,
+} from "@/lib/schedule";
 import type { Course, Section } from "@/lib/types";
 import styles from "./ProfessorRail.module.css";
 
@@ -6,44 +13,31 @@ interface Props {
   course: Course | null;
   /** Already ranked best-first. */
   sections: Section[];
-  currentId: string | null;
-  pendingId: string | null;
-  /** sectionId → codes of planned courses it clashes with. */
-  conflicts: Map<string, string[]>;
-  completed: string[];
-  /** Courses planned in earlier terms; count toward prerequisites. */
-  plannedEarlier: string[];
-  scrapedAt: string;
-  onPick: (sectionId: string) => void;
-  onHover: (sectionId: string | null) => void;
+  currentClass: number | null;
+  pendingClass: number | null;
+  /** classNumber → codes of planned courses it clashes with. */
+  conflicts: Map<number, string[]>;
+  timesScrapedAt: string | null;
+  onPick: (classNumber: number) => void;
+  onHover: (classNumber: number | null) => void;
   onSwap: () => void;
-}
-
-function minutesAgo(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  return hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
 }
 
 function seatsLabel(s: Section): string {
   if (s.openSeats == null) return "Seats TBA";
   if (s.openSeats === 0) return s.waitlistTotal ? `Full · ${s.waitlistTotal} waitlisted` : "Full";
-  return `${s.openSeats} seats`;
+  return `${s.openSeats} seat${s.openSeats === 1 ? "" : "s"}`;
 }
 
-const pct = (v: number | null) => `${((v ?? 0) / 5) * 100}%`;
+const pct = (v: number | null | undefined) => `${((v ?? 0) / 5) * 100}%`;
 
 export function ProfessorRail({
   course,
   sections,
-  currentId,
-  pendingId,
+  currentClass,
+  pendingClass,
   conflicts,
-  completed,
-  plannedEarlier,
-  scrapedAt,
+  timesScrapedAt,
   onPick,
   onHover,
   onSwap,
@@ -51,13 +45,13 @@ export function ProfessorRail({
   if (!course) {
     return (
       <aside className={styles.rail}>
-        <p className={styles.empty}>Pick a course to compare its professors and sections.</p>
+        <p className={styles.empty}>Add a course, then pick it to compare its professors and sections.</p>
       </aside>
     );
   }
 
-  const canSwap = pendingId != null && pendingId !== currentId;
-  const pendingConflicts = (pendingId && conflicts.get(pendingId)) || [];
+  const canSwap = pendingClass != null && pendingClass !== currentClass;
+  const pendingConflicts = (pendingClass != null && conflicts.get(pendingClass)) || [];
 
   return (
     <aside className={styles.rail} aria-label={`${course.code} sections`}>
@@ -66,72 +60,70 @@ export function ProfessorRail({
           {course.code} · {course.credits} CR
         </div>
         <h2 className={styles.title}>{course.name}</h2>
-        <div className={styles.prereqs}>
-          {course.prerequisites.length === 0
-            ? "No prerequisites"
-            : "Prereqs " +
-              course.prerequisites
-                .map((p) => `${p} ${completed.includes(p) ? "✓" : plannedEarlier.includes(p) ? "(planned)" : "✗"}`)
-                .join(" · ")}
-        </div>
+        <p className={styles.prereqs} title={course.prerequisites || undefined}>
+          {course.prerequisites || "No prerequisites listed"}
+        </p>
       </div>
 
       <div className={styles.sectionHead}>
         <span>PROFESSORS · RANKED</span>
         <span className={styles.fresh} suppressHydrationWarning>
-          Seats as of {minutesAgo(scrapedAt)}
+          {timesScrapedAt ? `Seats as of ${timeAgo(timesScrapedAt)}` : "Seats unavailable"}
         </span>
       </div>
 
       <ol className={styles.list} onMouseLeave={() => onHover(null)}>
         {sections.map((s, i) => {
-          const picked = s.id === pendingId;
-          const clash = conflicts.get(s.id) ?? [];
-          const tone = ratingTone(s.instructor.rmpRating);
+          const picked = s.classNumber === pendingClass;
+          const clash = conflicts.get(s.classNumber) ?? [];
+          const lead = primaryInstructor(s);
+          const rating = lead.rating;
+          const others = s.instructors.slice(1).map((x) => x.name);
           const first = s.meetings[0];
           return (
-            <li key={s.id}>
+            <li key={s.classNumber}>
               <button
                 className={styles.card}
                 data-picked={picked || undefined}
                 aria-pressed={picked}
-                onClick={() => onPick(s.id)}
-                onMouseEnter={() => onHover(s.id)}
-                onFocus={() => onHover(s.id)}
+                onClick={() => onPick(s.classNumber)}
+                onMouseEnter={() => onHover(s.classNumber)}
+                onFocus={() => onHover(s.classNumber)}
                 onBlur={() => onHover(null)}
               >
                 <span className={styles.cardHead}>
                   <span className={styles.rank}>#{i + 1}</span>
-                  <span className={styles.prof}>{s.instructor.name}</span>
-                  {s.id === currentId && <span className={styles.badge}>In plan</span>}
-                  <span className={styles.rating} data-tone={tone}>
-                    {formatRating(s.instructor.rmpRating)}
+                  <span className={styles.prof}>{lead.name}</span>
+                  {s.classNumber === currentClass && <span className={styles.badge}>In plan</span>}
+                  <span className={styles.rating} data-tone={ratingTone(rating?.quality ?? null)}>
+                    {formatRating(rating?.quality ?? null)}
                   </span>
                 </span>
+                {others.length > 0 && <span className={styles.coInstructors}>with {others.join(", ")}</span>}
 
-                {s.instructor.rmpRating == null ? (
+                {rating == null ? (
                   <span className={styles.noRating}>No RateMyProfessors match</span>
                 ) : (
-                  <span className={styles.bars}>
+                  <span className={styles.bars} title={`${rating.numRatings} ratings`}>
                     <span>Quality</span>
                     <span className={styles.track}>
-                      <span className={styles.quality} style={{ width: pct(s.instructor.rmpRating) }} />
+                      <span className={styles.quality} style={{ width: pct(rating.quality) }} />
                     </span>
                     <span>Difficulty</span>
                     <span className={styles.track}>
-                      <span className={styles.difficulty} style={{ width: pct(s.instructor.rmpDifficulty) }} />
+                      <span className={styles.difficulty} style={{ width: pct(rating.difficulty) }} />
                     </span>
                   </span>
                 )}
 
                 <span className={styles.foot}>
                   <span title={first ? `${formatTime(first.begin)}–${formatTime(first.end)}` : undefined}>
-                    {formatSchedule(s)}
+                    {formatSchedule(s)} · #{s.classNumber}
                   </span>
                   <span data-full={s.openSeats === 0 || undefined}>{seatsLabel(s)}</span>
                 </span>
 
-                {clash.length > 0 && s.id !== currentId && (
+                {clash.length > 0 && s.classNumber !== currentClass && (
                   <span className={styles.conflict}>Conflicts with {clash.join(", ")}</span>
                 )}
               </button>

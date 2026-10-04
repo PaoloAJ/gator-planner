@@ -1,45 +1,54 @@
 "use client";
 
 import { useEffect, useId, useState, type RefObject } from "react";
-import { formatRating, rankSections, ratingTone } from "@/lib/schedule";
-import type { Course } from "@/lib/types";
+import { searchCourses } from "@/lib/api";
+import { formatRating, ratingTone } from "@/lib/schedule";
+import type { SearchResult } from "@/lib/types";
 import styles from "./CourseSearch.module.css";
 
 interface Props {
-  catalog: Course[];
+  termCode: string | null;
   plannedCodes: Set<string>;
-  onAdd: (course: Course) => void;
+  onAdd: (code: string) => void;
   inputRef: RefObject<HTMLInputElement | null>;
 }
 
-const MAX_RESULTS = 8;
+const DEBOUNCE_MS = 120;
 
-/** Prefix matches on code beat matches in the name, which beat instructor matches. */
-function search(catalog: Course[], query: string): Course[] {
-  const q = query.trim().toLowerCase().replace(/\s+/g, " ");
-  if (!q) return [];
-  const compact = q.replace(/\s/g, "");
-  const scored = catalog.flatMap((c) => {
-    const code = c.code.toLowerCase();
-    const name = c.name.toLowerCase();
-    let score = 0;
-    if (code.startsWith(compact)) score = 3;
-    else if (name.split(/\W+/).some((w) => w.startsWith(q)) || name.includes(q)) score = 2;
-    else if (c.sections.some((s) => s.instructor.name.toLowerCase().includes(q))) score = 1;
-    return score ? [{ c, score }] : [];
-  });
-  return scored
-    .sort((a, b) => b.score - a.score || a.c.code.localeCompare(b.c.code))
-    .slice(0, MAX_RESULTS)
-    .map((r) => r.c);
+interface Response {
+  key: string; // term + query the results belong to
+  results: SearchResult[];
+  error?: string;
 }
 
-export function CourseSearch({ catalog, plannedCodes, onAdd, inputRef }: Props) {
+export function CourseSearch({ termCode, plannedCodes, onAdd, inputRef }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [response, setResponse] = useState<Response | null>(null);
   const listId = useId();
-  const results = search(catalog, query);
+
+  const q = query.trim();
+  const key = `${termCode}:${q}`;
+  // Only show results for what's currently typed; anything else is in flight.
+  const current = response?.key === key ? response : null;
+  const results = current?.results ?? [];
+
+  useEffect(() => {
+    if (!q || !termCode) return;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => {
+      searchCourses(termCode, q, ctl.signal)
+        .then((results) => setResponse({ key, results }))
+        .catch((e: Error) => {
+          if (!ctl.signal.aborted) setResponse({ key, results: [], error: e.message });
+        });
+    }, DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      ctl.abort();
+    };
+  }, [q, termCode, key]);
 
   // "/" or ⌘K focuses search from anywhere.
   useEffect(() => {
@@ -54,8 +63,8 @@ export function CourseSearch({ catalog, plannedCodes, onAdd, inputRef }: Props) 
     return () => window.removeEventListener("keydown", onKey);
   }, [inputRef]);
 
-  function choose(course: Course) {
-    onAdd(course);
+  function choose(r: SearchResult) {
+    onAdd(r.code);
     setQuery("");
     setOpen(false);
     inputRef.current?.blur();
@@ -78,7 +87,7 @@ export function CourseSearch({ catalog, plannedCodes, onAdd, inputRef }: Props) 
     }
   }
 
-  const showList = open && query.trim() !== "";
+  const showList = open && q !== "";
 
   return (
     <div className={styles.wrap}>
@@ -93,6 +102,7 @@ export function CourseSearch({ catalog, plannedCodes, onAdd, inputRef }: Props) 
         aria-controls={listId}
         aria-activedescendant={showList && results[active] ? `${listId}-${active}` : undefined}
         aria-autocomplete="list"
+        disabled={!termCode}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -104,40 +114,40 @@ export function CourseSearch({ catalog, plannedCodes, onAdd, inputRef }: Props) 
         onKeyDown={onKeyDown}
       />
       {showList && (
-        <ul id={listId} role="listbox" className={styles.list}>
-          {results.length === 0 && <li className={styles.empty}>No courses match “{query.trim()}”</li>}
-          {results.map((c, i) => {
-            const best = rankSections(c)[0]?.instructor.rmpRating ?? null;
-            const planned = plannedCodes.has(c.code);
-            return (
-              <li
-                key={c.code}
-                id={`${listId}-${i}`}
-                role="option"
-                aria-selected={i === active}
-                className={styles.option}
-                data-active={i === active || undefined}
-                // mousedown so the input's blur doesn't close the list first
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  choose(c);
-                }}
-                onMouseEnter={() => setActive(i)}
-              >
-                <span className={styles.body}>
-                  <span className={styles.code}>{c.code}</span>
-                  <span className={styles.name}>{c.name}</span>
-                  <span className={styles.meta}>
-                    {c.credits} cr · {c.sections.length} section{c.sections.length === 1 ? "" : "s"}
-                  </span>
+        <ul id={listId} role="listbox" className={styles.list} aria-busy={!current}>
+          {!current && <li className={styles.empty}>Searching…</li>}
+          {current?.error && <li className={styles.empty}>Search failed: {current.error}</li>}
+          {current && !current.error && results.length === 0 && (
+            <li className={styles.empty}>No courses match “{q}”</li>
+          )}
+          {results.map((r, i) => (
+            <li
+              key={r.code}
+              id={`${listId}-${i}`}
+              role="option"
+              aria-selected={i === active}
+              className={styles.option}
+              data-active={i === active || undefined}
+              // mousedown so the input's blur doesn't close the list first
+              onMouseDown={(e) => {
+                e.preventDefault();
+                choose(r);
+              }}
+              onMouseEnter={() => setActive(i)}
+            >
+              <span className={styles.body}>
+                <span className={styles.code}>{r.code}</span>
+                <span className={styles.name}>{r.name}</span>
+                <span className={styles.meta}>
+                  {r.credits} cr · {r.sections} section{r.sections === 1 ? "" : "s"}
                 </span>
-                <span className={styles.rating} data-tone={ratingTone(best)}>
-                  {formatRating(best)}
-                </span>
-                <span className={styles.action}>{planned ? "In plan" : "Add"}</span>
-              </li>
-            );
-          })}
+              </span>
+              <span className={styles.rating} data-tone={ratingTone(r.bestRating)} title="Best professor rating">
+                {formatRating(r.bestRating)}
+              </span>
+              <span className={styles.action}>{plannedCodes.has(r.code) ? "In plan" : "Add"}</span>
+            </li>
+          ))}
         </ul>
       )}
     </div>

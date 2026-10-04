@@ -80,3 +80,7 @@
     flex: 1;
   }
 }
+
+.warn {
+  color: var(--ok);
+}
