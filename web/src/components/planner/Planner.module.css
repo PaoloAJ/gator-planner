@@ -79,3 +79,13 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.degreeView {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.degreeView[hidden] {
+  display: none;
+}

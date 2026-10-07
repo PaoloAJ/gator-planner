@@ -196,3 +196,76 @@ func prefixTSQuery(q string) string {
 func escapeLike(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
 }
+
+// CourseFacts is what the degree planner needs to know about a course,
+// merged across every term in the database.
+type CourseFacts struct {
+	Code          string
+	Name          string
+	Credits       float64
+	Prerequisites string
+	// Terms lists the term codes the course was offered in, newest first.
+	Terms []string
+	// From RateMyProfessors, across the course's instructors in the newest
+	// term that has ratings: the best quality score and average difficulty.
+	Rating     *float64
+	Difficulty *float64
+}
+
+// CourseFacts looks courses up across all stored terms. A code without its
+// letter suffix also matches ("COP3502" finds "COP3502C"); results are keyed
+// by the code as requested.
+func (s *Store) CourseFacts(ctx context.Context, codes []string) (map[string]CourseFacts, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT c.code, c.name, c.credits, c.prerequisites, c.term_code, r.rating, r.difficulty
+		FROM course c
+		LEFT JOIN LATERAL (
+			SELECT max(i.rmp_rating) AS rating, avg(i.rmp_difficulty) AS difficulty
+			FROM section s
+			JOIN section_instructor si ON si.section_id = s.id
+			JOIN instructor i ON i.id = si.instructor_id
+			WHERE s.course_id = c.id AND i.rmp_num_ratings > 0
+		) r ON true
+		WHERE c.code = ANY($1) OR (length(c.code) = 8 AND left(c.code, 7) = ANY($1))
+		ORDER BY c.term_code DESC`, codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byCode := map[string]*CourseFacts{}
+	for rows.Next() {
+		var f CourseFacts
+		var term string
+		if err := rows.Scan(&f.Code, &f.Name, &f.Credits, &f.Prerequisites, &term, &f.Rating, &f.Difficulty); err != nil {
+			return nil, err
+		}
+		if cur, ok := byCode[f.Code]; ok {
+			cur.Terms = append(cur.Terms, term)
+			if cur.Rating == nil && f.Rating != nil {
+				cur.Rating, cur.Difficulty = f.Rating, f.Difficulty
+			}
+			continue
+		}
+		f.Terms = []string{term}
+		byCode[f.Code] = &f
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	out := map[string]CourseFacts{}
+	for _, want := range codes {
+		if f, ok := byCode[want]; ok {
+			out[want] = *f
+			continue
+		}
+		for code, f := range byCode {
+			if len(code) == 8 && code[:7] == want {
+				out[want] = *f
+				break
+			}
+		}
+	}
+	return out, nil
+}

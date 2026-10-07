@@ -1,0 +1,73 @@
+{
+  "careers": [
+    {
+      "name": "Test Student",
+      "ufid": 12345678,
+      "careerCode": "UGRD",
+      "status": "FAIL",
+      "programs": [
+        {
+          "programCode": "UGENG",
+          "programName": "Engineering Program",
+          "plans": [
+            {"plan": "CPS_BSCS", "planType": "MAJ", "planTypeDescription": "Major", "planDescription": "Computer Science", "catalogYear": 2248},
+            {"plan": "EIN_UMN", "planType": "MIN", "planTypeDescription": "Minor", "planDescription": "Engineering Innovation", "catalogYear": 2248}
+          ]
+        }
+      ],
+      "planGroups": [
+        [
+          {
+            "status": "COMP", "met": true, "title": "Computer Science - Critical Tracking Summary",
+            "gpaActual": 3.5, "description": "", "academicPlan": "CPS_BSCS", "coursesTaken": [], "coursesAvailable": "",
+            "requirements": [
+              {
+                "status": "COMP", "met": true, "title": "Critical Tracking Summary", "academicPlan": "CPS_BSCS",
+                "description": "Complete all of the following: MAC 2311, COP 3502C, PHY 2048",
+                "subRequirements": [
+                  {"status": "COMP", "met": true, "title": "MAC2311 - Analyt Geom and Calc 1", "academicPlan": "CPS_BSCS",
+                   "coursesTaken": [{"termDescription": "Fall 2024", "termCode": 2248, "courseName": "Analyt Geom and Calc 1", "courseType": "EN", "credit": 4, "grade": "A", "inProgress": false, "subject": "MAC", "catalogNumber": 2311}]},
+                  {"status": "COMP", "met": true, "title": "COP3502C - Programming Fundamentals 1", "academicPlan": "CPS_BSCS",
+                   "coursesTaken": [{"termDescription": "Fall 2024", "termCode": 2248, "courseName": "Prog Fundamentals 1", "courseType": "EN", "credit": 4, "grade": "A", "inProgress": false, "subject": "COP", "catalogNumber": "3502C"}]},
+                  {"status": "COMP", "met": true, "title": "PHY2048 - Physics with Calculus 1", "academicPlan": "CPS_BSCS",
+                   "coursesTaken": [{"termDescription": "Sum 2025", "termCode": 2255, "courseName": "Physics With Calc 1", "courseType": "TR", "credit": 3, "grade": "A", "inProgress": false, "subject": "PHY", "catalogNumber": 2048}]}
+                ]
+              }
+            ]
+          },
+          {
+            "status": "COMP", "met": true, "title": "Computer Science - Critical Tracking Progress", "academicPlan": "CPS_BSCS",
+            "description": "Semester 6\n * Complete COP 3503C and COT 3100\n\nSemester 7\n * Complete COP 3530",
+            "coursesTaken": [], "requirements": []
+          },
+          {
+            "status": "FAIL", "met": false, "title": "Computer Science Core", "academicPlan": "CPS_BSCS",
+            "description": "<b>Required</b> core courses", "coursesTaken": [], "coursesAvailable": "",
+            "requirements": [
+              {"status": "COMP", "met": true, "title": "Programming Fundamentals 2", "academicPlan": "CPS_BSCS",
+               "coursesTaken": [{"termDescription": "Fall 2026", "termCode": 2268, "courseName": "Prog Fundamentals 2", "courseType": "EN", "credit": 4, "grade": "", "inProgress": true, "subject": "COP", "catalogNumber": "3503C"}],
+               "inProgress": true},
+              {"status": "FAIL", "met": false, "title": "Data Structures", "academicPlan": "CPS_BSCS", "description": ".",
+               "courseNeeded": 1, "unitsNeeded": 3, "coursesTaken": [], "coursesAvailable": "COP 3530"},
+              {"status": "FAIL", "met": false, "title": "Operating Systems", "academicPlan": "CPS_BSCS", "description": "",
+               "courseNeeded": 1, "coursesTaken": [], "coursesAvailable": "COP 4600"}
+            ]
+          },
+          {
+            "status": "FAIL", "met": false, "title": "Technical Electives", "academicPlan": "CPS_BSCS",
+            "description": "Complete 6 credits from CAP 4XXX or CIS 4301 &amp; related courses.",
+            "unitsNeeded": 6, "coursesTaken": [], "coursesAvailable": "", "requirements": []
+          },
+          {
+            "status": "FAIL", "met": false, "title": "Engineering Innovation Minor", "academicPlan": "EIN_UMN",
+            "description": "", "coursesTaken": [], "coursesAvailable": "",
+            "requirements": [
+              {"status": "FAIL", "met": false, "title": "Minor Core", "academicPlan": "EIN_UMN",
+               "description": "Complete EIN 4243C", "courseNeeded": 1, "coursesTaken": [], "coursesAvailable": ["EIN 4243C"]}
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}

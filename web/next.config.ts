@@ -5,6 +5,10 @@ import type { NextConfig } from "next";
 const apiURL = process.env.API_URL ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Degree plans stream for up to ~5 minutes; the default proxy timeout is 30s.
+    proxyTimeout: 330_000,
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiURL}/api/:path*` }];
   },

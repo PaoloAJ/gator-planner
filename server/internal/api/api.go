@@ -4,6 +4,7 @@
 //	GET /api/terms
 //	GET /api/terms/{term}/search?q=cop35&limit=8
 //	GET /api/terms/{term}/courses/{code}
+//	POST /api/plan   (degree audit in, NDJSON progress + plan out)
 package api
 
 import (
@@ -17,7 +18,9 @@ import (
 	"strings"
 	"time"
 
+	"gatorplan/internal/audit"
 	"gatorplan/internal/catalog"
+	"gatorplan/internal/planner"
 	"gatorplan/internal/store"
 	"gatorplan/internal/term"
 )
@@ -30,13 +33,22 @@ type Catalog interface {
 	Course(ctx context.Context, termCode, code string) (*catalog.Course, error)
 }
 
-type Server struct {
-	cat Catalog
-	now func() time.Time
+// Planner builds a degree plan from an audit summary.
+type Planner interface {
+	Run(ctx context.Context, s *audit.Summary, opt planner.Options, emit func(planner.Event)) (*planner.Result, error)
 }
 
-func New(cat Catalog) *Server {
-	return &Server{cat: cat, now: time.Now}
+type Server struct {
+	cat     Catalog
+	planner Planner
+	limiter *limiter
+	now     func() time.Time
+}
+
+// New builds the API. pl may be nil to disable /api/plan; planPerHour caps
+// plan requests per client IP, since each one costs model usage.
+func New(cat Catalog, pl Planner, planPerHour int) *Server {
+	return &Server{cat: cat, planner: pl, limiter: newLimiter(planPerHour, time.Hour), now: time.Now}
 }
 
 // Data only changes on the hourly scrape, so let browsers and the CDN cache
@@ -51,6 +63,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/terms", s.terms)
 	mux.HandleFunc("GET /api/terms/{term}/search", s.search)
 	mux.HandleFunc("GET /api/terms/{term}/courses/{code}", s.course)
+	mux.HandleFunc("POST /api/plan", s.plan)
 	return logRequests(mux)
 }
 
@@ -168,6 +181,9 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status int
 }
+
+// Unwrap lets http.ResponseController reach Flush and SetWriteDeadline.
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
 
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code

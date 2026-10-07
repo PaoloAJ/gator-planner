@@ -87,3 +87,94 @@ export interface PlannedCourse {
   courseCode: string;
   classNumber: number;
 }
+
+// --- Degree planner (server/internal/planner) ---
+
+export interface DegreeProgram {
+  code: string;
+  type: string; // "Major", "Minor"
+  name: string;
+  catalogYear: number;
+}
+
+export interface DegreePlanCourse {
+  code: string;
+  name: string;
+  credits: number;
+  requirement: string;
+  /** Why this course in this term. */
+  reason: string;
+  /** Parsed prerequisite rule, e.g. "COP3530 and CDA3101". */
+  prerequisites?: string;
+  /** RateMyProfessors: best instructor rating and average difficulty (1–5). */
+  rating: number | null;
+  difficulty: number | null;
+}
+
+export type Workload = "light" | "moderate" | "heavy" | "";
+
+export interface DegreePlanTerm {
+  code: string;
+  label: string;
+  credits: number;
+  focus: string;
+  /** A term the student will be away (co-op, abroad); it has no courses. */
+  away: boolean;
+  workload: Workload;
+  difficulty: number | null;
+  courses: DegreePlanCourse[] | null;
+}
+
+export interface PlanAnswer {
+  question: string;
+  answer: string;
+}
+
+export interface DegreePlan {
+  programs: DegreeProgram[];
+  creditsCompleted: number;
+  creditsPlanned: number;
+  graduationTerm: string;
+  terms: DegreePlanTerm[];
+  summary: string;
+  milestones: string[] | null;
+  preferencesApplied: string;
+  answers: PlanAnswer[] | null;
+  unresolved: string[] | null;
+  warnings: string[] | null;
+  /** Validation errors left unfixed; empty when the plan passed every check. */
+  problems: string[] | null;
+}
+
+export interface PlanQuestion {
+  question: string;
+  options: string[];
+}
+
+export type Pace = "balanced" | "front-load" | "steady";
+
+/** Mirrors planner.Options on the server, which re-validates everything. */
+export interface PlanOptions {
+  startTerm: string;
+  targetTerm?: string;
+  includeSummer: boolean;
+  maxCredits: number;
+  minCredits: number;
+  maxSummerCredits: number;
+  awayTerms: string[];
+  pace: Pace;
+  interests: string[];
+  preferHighlyRated: boolean;
+  mustTake: string[];
+  avoid: string[];
+  notes: string;
+  answers?: PlanAnswer[];
+  skipQuestions?: boolean;
+}
+
+export type PlanEvent =
+  | { type: "status"; message: string }
+  | { type: "ping" }
+  | { type: "questions"; questions: PlanQuestion[] }
+  | { type: "plan"; plan: DegreePlan }
+  | { type: "error"; message: string };

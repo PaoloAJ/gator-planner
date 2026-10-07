@@ -7,6 +7,7 @@ interface Props {
   courseCount: number;
   credits: number;
   averageRating: number | null;
+  onPlanDegree: () => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -19,7 +20,7 @@ function registrationLine(opensISO: string): { text: string; detail?: string } {
   return { text: `Registration opens ${label}`, detail: `${days} day${days === 1 ? "" : "s"}` };
 }
 
-export function StatusBar({ term, courseCount, credits, averageRating }: Props) {
+export function StatusBar({ term, courseCount, credits, averageRating, onPlanDegree }: Props) {
   const reg = term.registrationOpens ? registrationLine(term.registrationOpens) : null;
   return (
     <div className={styles.bar}>
@@ -45,8 +46,8 @@ export function StatusBar({ term, courseCount, credits, averageRating }: Props) 
       </span>
       <div className={styles.spacer} />
       <div className={styles.actions}>
-        <button className={styles.secondary} aria-disabled title="Coming soon">
-          Generate schedules
+        <button className={styles.plan} onClick={onPlanDegree}>
+          Plan my degree
         </button>
         <button className={styles.primary} aria-disabled title="Coming soon">
           Export to ONE.UF

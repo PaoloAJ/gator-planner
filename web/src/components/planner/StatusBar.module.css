@@ -40,6 +40,7 @@
 }
 
 .secondary,
+.plan,
 .primary {
   padding: 7px 12px;
   border-radius: 7px;
@@ -52,6 +53,18 @@
   background: transparent;
   color: var(--uf-blue);
   font-weight: 600;
+}
+
+.plan {
+  border: 1px solid var(--uf-blue);
+  background: transparent;
+  color: var(--uf-blue);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.plan:hover {
+  background: var(--tint-blue);
 }
 
 .primary {
@@ -76,6 +89,7 @@
   }
 
   .secondary,
+  .plan,
   .primary {
     flex: 1;
   }

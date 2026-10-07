@@ -42,7 +42,7 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 }
 
 func TestTermsMarksSuggested(t *testing.T) {
-	s := New(&fakeCatalog{})
+	s := New(&fakeCatalog{}, nil, 0)
 	s.now = func() time.Time { return time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC) }
 	rec := get(t, s.Handler(), "/api/terms")
 	var terms []catalog.Term
@@ -56,7 +56,7 @@ func TestTermsMarksSuggested(t *testing.T) {
 }
 
 func TestCourseRoutes(t *testing.T) {
-	h := New(&fakeCatalog{}).Handler()
+	h := New(&fakeCatalog{}, nil, 0).Handler()
 	cases := map[string]int{
 		"/api/terms/2271/courses/COP3530":      200,
 		"/api/terms/2271/courses/cop3530":      200, // case-insensitive
@@ -74,7 +74,7 @@ func TestCourseRoutes(t *testing.T) {
 
 func TestSearchPassesQuery(t *testing.T) {
 	f := &fakeCatalog{}
-	rec := get(t, New(f).Handler(), "/api/terms/2271/search?q=+data+struct+")
+	rec := get(t, New(f, nil, 0).Handler(), "/api/terms/2271/search?q=+data+struct+")
 	if rec.Code != 200 || f.lastQuery != "data struct" {
 		t.Fatalf("status %d, query %q", rec.Code, f.lastQuery)
 	}

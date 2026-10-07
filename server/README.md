@@ -83,8 +83,66 @@ How each term is handled:
 | `GET /api/terms`                          | Terms in the DB, with freshness and `suggested`        |
 | `GET /api/terms/{term}/search?q=&limit=`  | Ranked matches: code prefix → name/description → instructor |
 | `GET /api/terms/{term}/courses/{code}`    | Course with sections, instructors + ratings, meetings |
+| `POST /api/plan`                          | Degree plan from an audit (NDJSON stream; see below)  |
 
 Responses carry `Cache-Control: public, max-age=60, stale-while-revalidate=600`.
+
+## Degree planner (AI agent)
+
+`POST /api/plan` turns a student's UF degree audit plus their preferences into
+a detailed semester-by-semester plan. Set `ANTHROPIC_API_KEY` in `.env` (and
+add API credits to the Anthropic account) to enable it; without a key the
+endpoint returns 503 and the rest of the app works as usual.
+
+**Request:** `{"audit": …, …options}`. Options (`internal/planner/options.go`):
+
+| Field | Meaning |
+| --- | --- |
+| `startTerm`, `targetTerm` | Planning window; the target ("graduate by") ends it |
+| `includeSummer`, `maxSummerCredits` | Summer terms and their credit cap |
+| `minCredits`, `maxCredits` | Fall/spring load (min is a preference, max is enforced) |
+| `awayTerms` | Co-op/abroad terms that must stay empty |
+| `pace` | `balanced`, `front-load`, or `steady` (how to spread hard courses) |
+| `interests`, `preferHighlyRated` | Steer elective choices |
+| `mustTake`, `avoid` | Course codes to include or exclude (enforced) |
+| `notes` | Free-text instructions, up to 1,000 characters |
+| `answers`, `skipQuestions` | Follow-up to the agent's clarifying questions |
+
+**Flow:** the agent may first pause with up to 3 multiple-choice questions
+(a `questions` event); the client posts again with `answers` (or
+`skipQuestions`) and the agent plans. Claude Sonnet 5.5 (`ANTHROPIC_MODEL`) at
+`medium` effort (`PLANNER_EFFORT`) works through `lookup_courses`,
+`search_courses`, `ask_student`, and `submit_plan`.
+
+**Output:** per course, the requirement, a reason, prerequisites, professor
+rating, and difficulty; per term, a focus line and a workload rating computed
+from credits and RateMyProfessors difficulty; overall, milestones, graduation
+term, credit totals, and how the preferences were applied.
+
+### Guardrails
+
+Hard rules live in code; the prompt only steers.
+
+- **Input** (`Options.Check`, `audit.Parse`): every option is range- and
+  format-checked (400 on failure); free text is length-capped, stripped of
+  control characters, has emails and ID-like numbers redacted, and has `<`/`>`
+  swapped for look-alikes so it can't close or forge the tags it's wrapped in.
+  Name, UFID, grades, and GPA never leave `audit.Parse`.
+- **Prompt:** student text sits in `<student_notes>`/`<student_answers>` data
+  blocks; the system prompt ranks UF rules and the validator above structured
+  preferences above notes, and tells the model to decline (and say so)
+  anything that breaks rules or isn't degree planning.
+- **Agent:** only four narrow tools; questions are allowed once, before any
+  submission, and must be 1–3 short multiple-choice items; caps of 30 turns,
+  6 submissions, and 5 minutes; refusals and truncated output stop the run
+  without executing tools; `PLANS_PER_HOUR` per IP (default 10).
+- **Plan validator** (`validate.go`) rejects plans until fixed: prerequisite
+  and corequisite order, repeats and duplicates, credit caps (fall/spring and
+  summer), the window, away terms, avoided courses, must-take courses, missing
+  reasons/requirements/summary, and any unmet audit requirement that's neither
+  planned nor explained. Model-written text is length-clipped for display.
+- **UI:** the same limits in the browser, a disclaimer to confirm with an
+  advisor, and React's escaping for everything the model writes.
 
 ## Tests
 
@@ -103,6 +161,9 @@ internal/term            term codes ("2271" ↔ "Spring 2027")
 internal/soc             UF Schedule of Courses client + normalization
 internal/rmp             RateMyProfessors client + name matching
 internal/store           Postgres: migrations, ingest, queries
+internal/audit           degree audit → planning summary (no personal data)
+internal/prereq          UF prerequisite text → and/or rules
+internal/planner         Claude agent loop, tools, plan validator
 internal/api             HTTP handlers
 internal/alert           cookie-expiry alerts
 ```

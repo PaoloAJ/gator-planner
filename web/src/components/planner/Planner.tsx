@@ -16,6 +16,7 @@ import { StatusBar } from "./StatusBar";
 import { CourseList, type ListStatus } from "./CourseList";
 import { WeekGrid } from "./WeekGrid";
 import { ProfessorRail } from "./ProfessorRail";
+import { DegreePlanner } from "./DegreePlanner";
 import styles from "./Planner.module.css";
 
 interface Pending {
@@ -31,8 +32,11 @@ export function Planner() {
 
   // Every session starts with an empty plan.
   const [plans, setPlans] = useState<Record<string, PlannedCourse[]>>({});
-  // Course details fetched so far, per term.
+  // Course details fetched so far, per term. The ref mirrors state so a batch
+  // of adds (opening a degree-plan term) sees courses added moments earlier.
   const [courses, setCourses] = useState<Record<string, Record<string, Course>>>({});
+  const coursesRef = useRef(courses);
+  const [view, setView] = useState<"week" | "degree">("week");
   const [listStatus, setListStatus] = useState<ListStatus | null>(null);
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -77,6 +81,7 @@ export function Planner() {
     : new Map<number, string[]>();
 
   function selectTerm(code: string) {
+    setView("week");
     setTermCode(code);
     setSelectedCode(plans[code]?.[0]?.courseCode ?? null);
     setPending(null);
@@ -100,29 +105,31 @@ export function Planner() {
     setPending(null);
   }
 
-  async function addCourse(code: string) {
-    if (!termCode) return;
-    const t = termCode;
-    if (plan.some((p) => p.courseCode === code)) {
+  /** Adds a course to a term's plan; returns false if it couldn't be added. */
+  async function addCourse(code: string, target?: string): Promise<boolean> {
+    const t = target ?? termCode;
+    if (!t) return false;
+    if (!target && plan.some((p) => p.courseCode === code)) {
       selectCourse(code);
-      return;
+      return true;
     }
 
     setListStatus({ kind: "busy", text: `Adding ${code}…` });
     let course: Course;
     try {
-      course = courses[t]?.[code] ?? (await fetchCourse(t, code));
+      course = coursesRef.current[t]?.[code] ?? (await fetchCourse(t, code));
     } catch (e) {
       setListStatus({ kind: "error", text: `Couldn't load ${code}: ${(e as Error).message}` });
-      return;
+      return false;
     }
     if (course.sections.length === 0) {
       setListStatus({ kind: "error", text: `${code} has no sections this term.` });
-      return;
+      return false;
     }
 
-    const known = { ...courses[t], [code]: course };
-    setCourses((prev) => ({ ...prev, [t]: { ...prev[t], [code]: course } }));
+    coursesRef.current = { ...coursesRef.current, [t]: { ...coursesRef.current[t], [code]: course } };
+    const known = coursesRef.current[t];
+    setCourses(coursesRef.current);
     setPlans((prev) => {
       const current = prev[t] ?? [];
       if (current.some((p) => p.courseCode === code)) return prev;
@@ -134,6 +141,20 @@ export function Planner() {
     });
     setListStatus(null);
     selectCourse(code);
+    return true;
+  }
+
+  // Loads one term of a degree plan into the week planner.
+  async function openPlanTerm(t: string, codes: string[]) {
+    selectTerm(t);
+    const failed: string[] = [];
+    for (const code of codes) {
+      if (!(await addCourse(code, t))) failed.push(code);
+    }
+    if (failed.length) {
+      setListStatus({ kind: "error", text: `Not offered this term: ${failed.join(", ")}` });
+    }
+    selectCourse(codes.find((c) => !failed.includes(c)) ?? null);
   }
 
   function removeCourse(code: string) {
@@ -159,13 +180,24 @@ export function Planner() {
         searchRef={searchRef}
       />
 
-      {term ? (
+      {terms && terms.length > 0 && (
+        <div className={styles.degreeView} hidden={view !== "degree"}>
+          <DegreePlanner
+            availableTerms={new Set(terms.map((t) => t.code))}
+            onOpenTerm={openPlanTerm}
+            onBack={() => setView("week")}
+          />
+        </div>
+      )}
+
+      {view === "degree" ? null : term ? (
         <>
           <StatusBar
             term={term}
             courseCount={entries.length}
             credits={totalCredits(entries)}
             averageRating={averageRating(entries)}
+            onPlanDegree={() => setView("degree")}
           />
           <main className={styles.workspace}>
             <CourseList
