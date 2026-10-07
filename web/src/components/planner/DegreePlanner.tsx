@@ -1,7 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { streamDegreePlan } from "@/lib/api";
+import { IMPORT_FROM_EXTENSION, IMPORT_PARAM, requestExtensionAudit } from "@/lib/extension";
 import { upcomingTerms } from "@/lib/terms";
 import type { DegreePlan, PlanAnswer, PlanOptions, PlanQuestion } from "@/lib/types";
 import { PlanPreferences } from "./PlanPreferences";
@@ -14,6 +16,8 @@ interface Props {
   availableTerms: Set<string>;
   onOpenTerm: (termCode: string, courseCodes: string[]) => void;
   onBack: () => void;
+  /** Called when the page was opened by the extension, to bring this view forward. */
+  onImport: () => void;
 }
 
 type Step = "audit" | "prefs" | "running" | "questions" | "done";
@@ -24,6 +28,11 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "questions", label: "A few questions" },
   { id: "done", label: "Your plan" },
 ];
+
+function isAudit(data: unknown): boolean {
+  const careers = (data as { careers?: unknown } | null)?.careers;
+  return Array.isArray(careers) && careers.length > 0;
+}
 
 function defaultOptions(): PlanOptions {
   return {
@@ -42,7 +51,7 @@ function defaultOptions(): PlanOptions {
   };
 }
 
-export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
+export function DegreePlanner({ availableTerms, onOpenTerm, onBack, onImport }: Props) {
   const [step, setStep] = useState<Step>("audit");
   const [auditText, setAuditText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -55,6 +64,31 @@ export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<DegreePlan | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [imported, setImported] = useState(false);
+  const importStarted = useRef(false);
+
+  // Opened by the extension: take the audit it hands over and skip ahead.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (importStarted.current || url.searchParams.get(IMPORT_PARAM) !== IMPORT_FROM_EXTENSION) return;
+    importStarted.current = true;
+    url.searchParams.delete(IMPORT_PARAM);
+    window.history.replaceState(null, "", url);
+    onImport();
+    requestExtensionAudit().then((data) => {
+      if (!isAudit(data)) {
+        setError(
+          "GatorPlan didn't receive your audit from the extension. Click the extension's button on your ONE.UF degree audit again, or paste the audit below.",
+        );
+        return;
+      }
+      setAuditText(JSON.stringify(data, null, 2));
+      setFileName(null);
+      setAudit(data);
+      setImported(true);
+      setStep("prefs");
+    });
+  }, [onImport]);
 
   async function loadFile(file: File) {
     setFileName(file.name);
@@ -65,9 +99,7 @@ export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
     setError(null);
     try {
       const parsed = JSON.parse(auditText);
-      if (!parsed || !Array.isArray(parsed.careers) || parsed.careers.length === 0) {
-        throw new Error();
-      }
+      if (!isAudit(parsed)) throw new Error();
       setAudit(parsed);
       setStep("prefs");
     } catch {
@@ -121,6 +153,7 @@ export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
     setAudit(null);
     setAuditText("");
     setFileName(null);
+    setImported(false);
     setPlan(null);
     setQuestions([]);
     setAsked(false);
@@ -178,7 +211,7 @@ export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
 
         <p className={styles.privacy}>
           Your audit goes to GatorPlan’s server and, with your name, UFID, and grades removed, to Anthropic’s Claude to
-          build the plan. GatorPlan doesn’t store it.
+          build the plan. GatorPlan doesn’t store it. <Link href="/privacy">Privacy notice</Link>
         </p>
       </aside>
 
@@ -186,6 +219,12 @@ export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
         {error && (
           <p className={styles.error} role="alert">
             {error}
+          </p>
+        )}
+
+        {imported && step === "prefs" && (
+          <p className={styles.notice} role="status">
+            Loaded your degree audit from the GatorPlan extension, with your name, UFID, grades, and GPA removed.
           </p>
         )}
 
@@ -198,6 +237,11 @@ export function DegreePlanner({ availableTerms, onOpenTerm, onBack }: Props) {
             </p>
             <details className={styles.howto} open>
               <summary>How to get your audit</summary>
+              <p>
+                <strong>Easiest:</strong> install the GatorPlan Chrome extension, open your degree audit on ONE.UF, and
+                click the extension’s button. It brings your audit here with your name, UFID, grades, and GPA removed.
+              </p>
+              <p>Or copy it yourself:</p>
               <ol>
                 <li>Open your degree audit on ONE.UF.</li>
                 <li>Open DevTools (⌥⌘I) → Network, then reload the page.</li>

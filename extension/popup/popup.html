@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GatorPlan</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="brand">
+      <img src="../icons/icon-32.png" alt="" width="20" height="20" />
+      <span>GatorPlan</span>
+      <span class="tag">Degree audit import</span>
+    </header>
+
+    <!-- Shown until the student agrees. Nothing is read from ONE.UF before then. -->
+    <section id="consent" hidden>
+      <h1>Before you start</h1>
+      <p class="lede">Here's exactly what this extension does with your degree audit.</p>
+      <ul class="facts">
+        <li>
+          <strong>What it reads:</strong> only the degree audit that your ONE.UF degree audit page loads. It doesn't
+          read other ONE.UF pages, your browsing, or your login.
+        </li>
+        <li>
+          <strong>What it removes:</strong> your name, UFID, grades, and GPA are deleted in your browser before anything is
+          sent.
+        </li>
+        <li>
+          <strong>What it sends, and when:</strong> only when you click <em>Open in GatorPlan</em>, it sends your programs,
+          requirements, and course history to GatorPlan. GatorPlan sends a summary to Anthropic's Claude to build
+          your plan.
+        </li>
+        <li>
+          <strong>What's kept:</strong> nothing. The extension stores only that you agreed. GatorPlan doesn't save your
+          audit. No ads, analytics, or selling of data.
+        </li>
+      </ul>
+      <p class="fine">
+        GatorPlan is a student project, not affiliated with or endorsed by the University of Florida.
+        <a href="#" data-action="privacy">Full privacy notice</a>
+      </p>
+      <div class="actions">
+        <button class="secondary" data-action="decline">Not now</button>
+        <button class="primary" data-action="agree">Agree and continue</button>
+      </div>
+    </section>
+
+    <section id="elsewhere" hidden>
+      <h1>Open your degree audit</h1>
+      <p class="lede">Log in to ONE.UF and open your degree audit. Then click the GatorPlan button again.</p>
+      <div class="actions">
+        <button class="primary" data-action="open-audit">Open degree audit</button>
+      </div>
+    </section>
+
+    <section id="load" hidden>
+      <h1 id="load-title">Load your audit</h1>
+      <p class="lede" id="load-text"></p>
+      <div class="actions">
+        <button class="primary" id="load-button" data-action="load"></button>
+      </div>
+    </section>
+
+    <section id="waiting" hidden>
+      <h1>Waiting for your audit…</h1>
+      <p class="lede">ONE.UF can take a few seconds to build it. Keep this window open.</p>
+      <div class="spinner" aria-hidden="true"></div>
+    </section>
+
+    <section id="ready" hidden>
+      <h1>Audit found</h1>
+      <div class="card">
+        <ul id="programs" class="programs"></ul>
+        <p class="meta" id="report-date"></p>
+      </div>
+      <p class="fine">
+        Your name, UFID, grades, and GPA have been removed. Clicking <em>Open in GatorPlan</em> sends the rest to
+        GatorPlan to build your plan.
+      </p>
+      <div class="actions">
+        <button class="secondary" data-action="save">Save as .json</button>
+        <button class="primary" data-action="send">Open in GatorPlan</button>
+      </div>
+    </section>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <footer id="footer" hidden>
+      <a href="#" data-action="privacy">Privacy notice</a>
+      <a href="#" data-action="withdraw">Withdraw consent</a>
+    </footer>
+
+    <script src="../src/config.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

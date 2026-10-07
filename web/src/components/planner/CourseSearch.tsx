@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useId, useState, type RefObject } from "react";
-import { searchCourses } from "@/lib/api";
 import { formatRating, ratingTone } from "@/lib/schedule";
 import type { SearchResult } from "@/lib/types";
+import { useCourseSearch } from "./useCourseSearch";
 import styles from "./CourseSearch.module.css";
 
 interface Props {
@@ -13,48 +13,17 @@ interface Props {
   inputRef: RefObject<HTMLInputElement | null>;
 }
 
-const DEBOUNCE_MS = 120;
-
-interface Response {
-  key: string; // term + query the results belong to
-  results: SearchResult[];
-  error?: string;
-}
-
 export function CourseSearch({ termCode, plannedCodes, onAdd, inputRef }: Props) {
-  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
-  const [response, setResponse] = useState<Response | null>(null);
+  const search = useCourseSearch(termCode);
+  const { q, current, results, active } = search;
   const listId = useId();
 
-  const q = query.trim();
-  const key = `${termCode}:${q}`;
-  // Only show results for what's currently typed; anything else is in flight.
-  const current = response?.key === key ? response : null;
-  const results = current?.results ?? [];
-
-  useEffect(() => {
-    if (!q || !termCode) return;
-    const ctl = new AbortController();
-    const timer = setTimeout(() => {
-      searchCourses(termCode, q, ctl.signal)
-        .then((results) => setResponse({ key, results }))
-        .catch((e: Error) => {
-          if (!ctl.signal.aborted) setResponse({ key, results: [], error: e.message });
-        });
-    }, DEBOUNCE_MS);
-    return () => {
-      clearTimeout(timer);
-      ctl.abort();
-    };
-  }, [q, termCode, key]);
-
-  // "/" or ⌘K focuses search from anywhere.
+  // "/" focuses search from anywhere (⌘K opens the add-course dialog).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const typing = e.target instanceof HTMLElement && e.target.matches("input, textarea, [contenteditable]");
-      if ((e.key === "/" && !typing) || (e.key === "k" && (e.metaKey || e.ctrlKey))) {
+      const typing = e.target instanceof HTMLElement && e.target.matches("input, textarea, select, [contenteditable]");
+      if (e.key === "/" && !typing) {
         e.preventDefault();
         inputRef.current?.focus();
       }
@@ -65,19 +34,15 @@ export function CourseSearch({ termCode, plannedCodes, onAdd, inputRef }: Props)
 
   function choose(r: SearchResult) {
     onAdd(r.code);
-    setQuery("");
+    search.setQuery("");
     setOpen(false);
     inputRef.current?.blur();
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "ArrowDown") {
+    if (search.moveActive(e.key)) {
       e.preventDefault();
       setOpen(true);
-      setActive((i) => Math.min(i + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && results[active]) {
       e.preventDefault();
       choose(results[active]);
@@ -103,10 +68,9 @@ export function CourseSearch({ termCode, plannedCodes, onAdd, inputRef }: Props)
         aria-activedescendant={showList && results[active] ? `${listId}-${active}` : undefined}
         aria-autocomplete="list"
         disabled={!termCode}
-        value={query}
+        value={search.query}
         onChange={(e) => {
-          setQuery(e.target.value);
-          setActive(0);
+          search.setQuery(e.target.value);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
@@ -133,7 +97,7 @@ export function CourseSearch({ termCode, plannedCodes, onAdd, inputRef }: Props)
                 e.preventDefault();
                 choose(r);
               }}
-              onMouseEnter={() => setActive(i)}
+              onMouseEnter={() => search.setActive(i)}
             >
               <span className={styles.body}>
                 <span className={styles.code}>{r.code}</span>

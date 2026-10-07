@@ -25,6 +25,16 @@
   --bad: #97361f;
   --ring-mid: #f59a3c;
 
+  /* Course colors: tint, bar, and text for each slot (see courseColor). */
+  --c0-bg: #e6eaf7; --c0-bar: #0021a5; --c0-ink: #0021a5;
+  --c1-bg: #fee9e2; --c1-bar: #fa4616; --c1-ink: #a62b08;
+  --c2-bg: #dff1e8; --c2-bar: #1f8a5b; --c2-ink: #17684a;
+  --c3-bg: #eee6f7; --c3-bar: #7a3fb8; --c3-ink: #5b2a8f;
+  --c4-bg: #dcf1f2; --c4-bar: #138a92; --c4-ink: #0d6066;
+  --c5-bg: #fbefd9; --c5-bar: #d18a12; --c5-ink: #7e4f0e;
+  --c6-bg: #fbe4ee; --c6-bar: #c53b7a; --c6-ink: #8f2556;
+  --c7-bg: #e8ebef; --c7-bar: #56657a; --c7-ink: #3a4656;
+
   --font-sans: var(--font-instrument), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, Menlo, monospace;
 }

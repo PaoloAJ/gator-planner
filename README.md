@@ -1,232 +1,158 @@
-# UF Class Scheduler — Tech Stack & MVP Requirements
+<div align="center">
 
-> Status: Draft v0.1 · Last updated: 2026-10-02
-> A class planner for upcoming UF semesters. Students browse the full course
-> catalog with live meeting times and seat availability, then build a
-> conflict-free schedule. Course data is enriched with RateMyProfessors ratings.
+# 🐊 GatorPlan
 
----
+**A fast, conflict-aware class scheduler and AI degree planner for University of Florida students.**
 
-## 1. Product Goal
+Browse every UF course for the upcoming term with live meeting times, open seats, and professor ratings.
+Build a conflict-free week in seconds, then let an AI agent turn your degree audit into a
+semester-by-semester path to graduation.
 
-Let a UF student answer, in seconds and on any device:
-**"What classes can I take, when do they meet, and are there seats open?"**
+![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js_16-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React_19-20232A?logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude_API-D97757?logo=anthropic&logoColor=white)
+![Chrome Extension](https://img.shields.io/badge/Chrome_Extension_MV3-4285F4?logo=googlechrome&logoColor=white)
 
-Everything in the MVP serves that one question. Schedule-building, ratings, and
-nice-to-haves come after the core browse/search/seats loop is fast and obvious.
+</div>
 
-### Guiding principles
-
-- **Ease of use first.** A new student should get a useful result with zero
-  instructions and zero login.
-- **Performance is a feature.** Search feels instant; the page is usable on a
-  weak laptop over campus Wi-Fi.
-- **User-centered.** Scope and UI decisions are driven by observed student
-  behavior, not assumptions (see §6, UCD cycle).
+<!-- Add a screenshot or GIF of the planner here, e.g.:
+<p align="center"><img src="docs/screenshot.png" alt="GatorPlan weekly planner" width="900"></p>
+-->
 
 ---
 
-## 2. Tech Stack
+## Why
 
-| Layer           | Choice                                           | Why                                                                                                                                     |
-| --------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend**    | Next.js (App Router) + TypeScript                | ISR matches the hourly data refresh; server-rendered course pages are SEO-indexable; server-side search keeps the client payload small. |
-| **Backend API** | Go                                               | Fast, single-binary deploy; strong at the combinatorial schedule-generation work; shared models with the ingestion service.             |
-| **API style**   | GraphQL (`gqlgen`) _or_ REST — **open decision** | Workload is read-heavy and fairly fixed (search, course detail, schedule-gen). GraphQL is good to learn but may be overkill; see §7.    |
-| **Database**    | PostgreSQL (via Supabase)                        | Managed Postgres + good dashboard. With a Go API in front, Supabase is used mainly as Postgres (auto-REST/realtime largely unused).     |
-| **Auth**        | Clerk                                            | Prebuilt login UI. **MVP needs almost no auth** — browsing is anonymous. Only saved schedules (post-MVP) require a user.                |
-| **Ingestion**   | Go cron job / daemon                             | Scrapes UF Schedule of Courses hourly, enriches with RMP, writes to Postgres. Runs on the home server. See §4.                          |
-| **Hosting**     | Debian home server + CDN for static assets       | Already running portfolio/web apps. CDN caches the ISR-rendered catalog pages.                                                          |
+Picking classes at UF means juggling the Schedule of Courses, ONE.UF, RateMyProfessors, and a
+spreadsheet, all to answer one question:
 
-### Notes on overlap (decide deliberately)
+> **"What can I take, when does it meet, and are there seats left?"**
 
-- **Clerk + Supabase Auth** both do authentication. Pick one as the live auth
-  system. For MVP, lean on Clerk only where a login is actually required; wire
-  Clerk JWTs into Supabase RLS only if/when the client talks to Postgres directly.
-- **Go API + Supabase** means Supabase is effectively just managed Postgres.
-  That's fine — just a conscious trade (you give up auto-generated REST/realtime).
+GatorPlan answers that on a single screen, with no login and no instructions needed.
 
----
+## Features
 
-## 3. Data Model (initial sketch)
+### 📅 Weekly planner
+- **Instant course search** across code, title, description, and instructor, ranked and keyboard-driven (`/` to search, `⌘K` / `Ctrl+K` for quick add).
+- **Live times and seats** for every section, with a freshness indicator so students know how current the data is.
+- **Automatic conflict detection.** Adding a course picks the best-rated section that fits your week, and clashes are flagged right away.
+- **Professor ratings inline.** RateMyProfessors scores and difficulty appear beside each section and link to the full profile.
+- **UF-native details:** class periods (P1–E3, summer periods included), online/hybrid badges, credit totals, and average rating per schedule.
 
-Normalized in Postgres. One row per section; meeting times and instructors in
-child tables.
+### 🎓 AI degree planner
+- Upload a UF degree audit and set preferences: graduation term, credit load, summers, co-op/abroad terms, pace, interests, and must-take or avoided courses.
+- A **Claude-powered agent** looks up real courses and prerequisites, can ask up to three clarifying questions, and produces a full plan. Each course comes with the requirement it satisfies, the reason it was picked, its prerequisites, and a professor rating. Each term gets a workload estimate.
+- Plans are **validated in code, not just prompted.** A deterministic validator rejects any plan that breaks prerequisite order, credit caps, or unmet requirements until the agent fixes it.
+- Results stream to the browser as NDJSON, so progress shows up live.
 
-```
-term(term_code PK, label)                         -- "2271" -> "Spring 2027"
-course(id PK, code, code_with_space, name, description, prerequisites, term_code FK)
-section(id PK, course_id FK, class_number, section_number, credits,
-        dept_name, gen_ed[], grad_basis, open_seats, waitlist_cap,
-        waitlist_total, final_exam, drop_add_deadline, scraped_at)
-meeting_time(id PK, section_id FK, days[], begin, end, building, room)
-instructor(id PK, name, rmp_rating, rmp_difficulty, rmp_legacy_id)
-section_instructor(section_id FK, instructor_id FK)   -- many-to-many
-```
+### 🧩 Chrome extension
+- One click sends your degree audit from ONE.UF to GatorPlan, replacing a manual DevTools copy-paste.
+- **Privacy by design:** asks for consent first, and strips your name, UFID, grades, and GPA *inside the tab* before anything leaves it. It requests only the `storage` permission.
 
-- Full-text search index on `course(code, code_with_space, name, description)`
-  using Postgres FTS (`tsvector` + GIN), the equivalent of the reference app's
-  SQLite FTS5.
-- `scraped_at` on every section so the UI can show data freshness.
+## Architecture
 
----
-
-## 4. Data Source (the critical risk)
-
-The headline feature — **times and seats** — depends on an undocumented UF API,
-and this is the riskiest part of the project.
-
-**Endpoint**
-
-```
-https://one.uf.edu/apix/soc/schedule/?category=CWSP&term={term_code}&last-control-number={n}
+```mermaid
+flowchart LR
+    SOC["UF Schedule of Courses"] --> Ingest
+    RMP["RateMyProfessors GraphQL"] --> Ingest
+    Ingest["Go ingester<br/>(hourly cron)"] -->|atomic upsert| DB[("PostgreSQL<br/>FTS + trigram")]
+    DB --> API["Go REST API"]
+    API <-->|tool calls| Claude["Claude agent<br/>(degree planner)"]
+    API -->|JSON / NDJSON| Web["Next.js web app"]
+    Ext["Chrome extension<br/>(ONE.UF audit)"] -->|redacted audit| Web
 ```
 
-- `term_code = "2" + YY + {spring:1, summer:5, fall:8}` (e.g. Spring 2027 = `2271`).
-- Paginates via `RETRIEVEDROWS` / `LASTCONTROLNUMBER`.
+| Component | Stack | Role |
+| --- | --- | --- |
+| [`server/`](server/) | Go, pgx, Anthropic Go SDK | Scraper/ingester, REST API, AI planning agent |
+| [`web/`](web/) | Next.js 16 (App Router), React 19, TypeScript, CSS Modules | Weekly planner, degree planner UI |
+| [`extension/`](extension/) | Chrome Manifest V3, vanilla JS | Degree audit import with on-device redaction |
 
-**Confirmed behavior (2026-10):**
+## Engineering highlights
 
-- **Anonymous requests return `meetTimes: []` and `openSeats: null`.** Course,
-  section, instructor, credits, prereqs, and waitlist data still come back.
-- **A logged-in session cookie (`ONEUF_SESSION`) unlocks meeting times and
-  seats.** Verified manually.
-- Auth is **cookie-based, not a bearer token.** `one.ufl.edu` 302-redirects to
-  `one.uf.edu`.
+- **Resilient data pipeline.** Each term is replaced in a single Postgres transaction, so the API serves the old catalog or the new one, never a half-written one. Scrapes that come back suspiciously small are refused. When the authenticated session cookie expires, the ingester keeps the last good times and seats, then fires an alert webhook instead of wiping data.
+- **Fast search without shipping the catalog.** The Postgres full-text index uses weighted `tsvector` columns (code > name > description), a prefix index for course codes, and `pg_trgm` for fuzzy instructor matching. API responses use `stale-while-revalidate` caching.
+- **Prerequisite parser.** It turns UF's free-text prerequisites (`"(COP 3502 or COP 3504) and MAC 2311"`) into evaluable and/or rule trees. Anything it can't parse, like "instructor permission", is reported rather than silently dropped.
+- **Guardrailed LLM agent.** Hard rules live in code and the prompt only steers. The agent gets four narrow tools, with caps on turns, plan submissions, and wall-clock time, plus per-IP rate limiting. User free text is sanitized and wrapped in data tags to resist prompt injection. Personal data from the audit (name, UFID, grades, GPA) never reaches the model.
+- **Fuzzy name matching.** Instructors are matched to RateMyProfessors after accent, hyphen, and middle-name normalization, with an exact match first and a first + last name fallback.
+- **Tested.** Unit tests cover term codes, SOC normalization, prereq parsing, rating matching, audit parsing, the plan validator, and the HTTP handlers. Database integration tests and redaction tests for the extension are included too.
 
-**Implications / risks:**
+## Getting started
 
-- The session cookie **expires** (hours, not weeks) and renewing it requires a
-  GatorLink login + Duo. This cannot be auto-renewed without undermining MFA, so
-  **the scraper must detect expiry and alert for a manual cookie refresh.**
-- Serving login-gated data publicly, tied to one student account, may conflict
-  with **UF's acceptable-use policy.** Review before any public launch; the
-  durable fix is to request a sanctioned feed/API from the **Registrar or UFIT**
-  (stronger coming from UF ACM than from one student).
-- **Mitigation:** build the catalog on the always-available public fields; treat
-  times/seats as an enrichment layer that degrades gracefully (show "time TBA"
-  rather than breaking) when the cookie is stale.
+**Prerequisites:** Go 1.27+, Node.js 20+, PostgreSQL 15+ (local or Supabase).
 
-**Ratings:** RateMyProfessors GraphQL (`schoolID` for UF), matched by exact
-instructor name. Coverage is partial (~2k of ~12k sections in the reference app).
+```sh
+# 1. Backend
+cd server
+cp .env.example .env          # set DATABASE_URL (and optionally ONEUF_SESSION, ANTHROPIC_API_KEY)
+createdb gatorplan
+go run ./cmd/ingest           # first scrape, ~2–3 min per term
+go run ./cmd/api              # http://localhost:8080
 
-**Ingestion flow (hourly):** scrape term(s) → clean/normalize → enrich with RMP →
-upsert into Postgres atomically → leave last-good data in place on failure.
+# 2. Frontend (new terminal)
+cd web
+npm install
+npm run dev                   # http://localhost:3000, proxies /api/* to the Go API
+```
 
----
+Optional configuration:
 
-## 5. MVP Requirements
+| Variable | Enables |
+| --- | --- |
+| `ONEUF_SESSION` | Meeting times and open seats (UF only returns these to logged-in sessions). Without it, courses, sections, instructors, and ratings still load and times show as "TBA". |
+| `ANTHROPIC_API_KEY` | The AI degree planner. Without it, `/api/plan` returns 503 and the rest of the app works normally. |
+| `ALERT_WEBHOOK_URL` | Notifications when the session cookie expires. |
 
-### 5.1 Core user stories
+See [`server/README.md`](server/README.md) for ingestion flags, the full API reference, and planner
+guardrails. See [`extension/README.md`](extension/README.md) for loading and packaging the extension.
 
-1. As a student, I can **see every available class** for a selected term.
-2. I can **search/filter** by course code, name, department, or instructor and
-   get results instantly.
-3. For any section, I can **see its meeting days/times, building/room, and open
-   seats** (with a freshness indicator).
-4. I can **see the professor's RMP rating** where available.
-5. I can do all of the above **without logging in**, on desktop or mobile.
+### Running tests
 
-### 5.2 Functional requirements (MoSCoW)
+```sh
+cd server && go test ./...          # Go unit tests
+cd extension && node --test         # redaction tests
+cd web && npm run lint
+```
 
-**Must have**
+## Project structure
 
-- [ ] Term selector (current + upcoming terms present in the DB).
-- [ ] Browse full catalog for the selected term (paginated / virtualized).
-- [ ] Search by code/name/dept/instructor with prefix + ranked results.
-- [ ] Section detail: meeting times, location, credits, instructor(s).
-- [ ] **Open seats + waitlist count**, with "last updated" freshness.
-- [ ] Graceful degradation when times/seats are unavailable ("TBA").
-- [ ] RMP rating/difficulty shown when matched.
-- [ ] Responsive, mobile-first layout.
+```
+gator-planner/
+├── server/
+│   ├── cmd/api, cmd/ingest     entry points
+│   └── internal/
+│       ├── soc/                UF Schedule of Courses client + normalization
+│       ├── rmp/                RateMyProfessors client + name matching
+│       ├── store/              Postgres migrations, ingest, queries
+│       ├── prereq/             prerequisite text → boolean rules
+│       ├── audit/              degree audit parsing (PII stripped)
+│       ├── planner/            Claude agent loop, tools, plan validator
+│       └── api/                HTTP handlers
+├── web/src/
+│   ├── components/planner/     planner UI (search, week grid, degree roadmap)
+│   └── lib/                    scheduling logic, UF periods, API client
+├── extension/                  Chrome MV3 degree audit importer
+└── docs/design.md              original product spec & MVP requirements
+```
 
-**Should have**
+## Design process
 
-- [ ] Filter by meeting day/time, credits, gen-ed, online vs. in-person.
-- [ ] Sort by seats, rating, or time.
-- [ ] Link to the course syllabus / UF catalog entry.
+GatorPlan started as a written spec built on a user-centered design loop: student interviews,
+wireframes, a vertical-slice build, and usability testing against one success metric.
+**A new student should find an open section with its meeting time in under 60 seconds, unaided.**
+The original requirements, data model, and risk analysis are in [`docs/design.md`](docs/design.md).
 
-**Could have**
+## Roadmap
 
-- [ ] "Add to cart" of sections held in local state (no account).
-- [ ] Basic conflict highlighting within the cart.
-
-**Won't have (this MVP)**
-
-- Full schedule generation / permutation engine.
-- Saved schedules, accounts, cross-device sync.
-- Prerequisite graph, campus map, live chat, AI assistant.
-- Direct registration / push to ONE.UF.
-
-### 5.3 Non-functional requirements
-
-**Performance (targets to validate, not guarantees)**
-
-- Search results render in **< 150 ms** p95 after keystroke (debounced),
-  server-side query included.
-- First Contentful Paint **< 1.5 s** on a mid-range laptop over campus Wi-Fi.
-- Catalog pages served from **ISR cache**, revalidated on the scrape cadence.
-- **Never ship the full catalog to the browser** — search and paginate
-  server-side through the Go API.
-- Data freshness: section data no more than ~1 hour stale; show the timestamp.
-
-**Usability**
-
-- Zero-instruction first use; useful result in one interaction.
-- Keyboard-navigable search; accessible (WCAG AA color contrast, focus states).
-- Clear empty/loading/error states, including the "times TBA" degraded case.
-
-**Reliability**
-
-- Ingestion failure leaves last-good data intact.
-- Cookie-expiry alert reaches the maintainer within one failed cycle.
+- [ ] Day/time, gen-ed, and delivery-mode filters
+- [ ] Saved schedules and shareable links
+- [ ] Export to calendar (.ics)
+- [ ] Sanctioned data feed from the UF Registrar to replace session-based scraping
 
 ---
 
-## 6. UCD Cycle
-
-User-centered design loop, run once per MVP milestone:
-
-1. **Research / Understand** — interview 5–8 UF students about how they pick
-   classes today (ONE.UF, Schedule of Courses, spreadsheets, word of mouth).
-   Capture pain points: finding open seats, avoiding time conflicts, judging
-   professors. Define primary persona(s) and the top 3 tasks.
-2. **Design** — low-fidelity wireframes of the browse → search → section-detail
-   flow. Paper/Figma, test the information hierarchy before writing UI code.
-3. **Build** — implement the smallest slice that lets a real student complete
-   the core task (see all classes, times, seats). Vertical slice, not polish.
-4. **Evaluate** — usability test with 3–5 students on real tasks ("find an open
-   section of COP3530 that doesn't conflict with your morning class"). Measure
-   task success, time-on-task, and confusion points.
-5. **Iterate** — fold findings back into the next cycle; re-prioritize the
-   MoSCoW list from evidence.
-
-**Success metric for MVP:** a student unfamiliar with the app can find an open
-section with its meeting time in **under 60 seconds**, unaided.
-
----
-
-## 7. Open Decisions
-
-- **GraphQL vs REST for the Go API.** Lean REST (or gRPC) for the fixed,
-  read-heavy MVP workload; choose GraphQL only if the learning value or a future
-  public API justifies the resolver overhead.
-- **Cron binary vs long-running daemon** for ingestion. Start with OS cron +
-  Go binary; move to a daemon if holding the session cookie warm in memory helps
-  with expiry.
-- **Auth system of record** (Clerk vs Supabase Auth) — defer until saved
-  schedules are on the roadmap; MVP is anonymous.
-- **Legitimacy of the data source** — pursue a sanctioned UF feed in parallel.
-
----
-
-## 8. Milestones (suggested)
-
-1. **M0 — Ingestion spike:** Go scraper pulls one term with times/seats into
-   Postgres; confirm cookie lifetime across several hourly runs.
-2. **M1 — Read-only catalog:** Next.js browse + server-side search + section
-   detail with times/seats. UCD cycle 1.
-3. **M2 — Filters + ratings:** day/time/gen-ed filters, RMP integration,
-   freshness UI. UCD cycle 2.
-4. **M3 — Cart + conflict highlighting (could-have):** local-state cart,
-   in-cart conflict detection. Sets up post-MVP schedule generation.
+<sub>GatorPlan is an independent student project and is not affiliated with or endorsed by the University of Florida.
+Always confirm your plan with an academic advisor.</sub>

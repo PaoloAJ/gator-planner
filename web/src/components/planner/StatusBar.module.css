@@ -2,8 +2,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 28px;
-  padding: 14px 24px;
+  gap: 8px 24px;
+  padding: 8px 24px;
   background: var(--bar);
   border-bottom: 1px solid var(--line-cool);
   font-size: 13px;
@@ -39,20 +39,12 @@
   gap: 10px;
 }
 
-.secondary,
 .plan,
 .primary {
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: 7px;
   font-size: 13px;
   cursor: not-allowed;
-}
-
-.secondary {
-  border: 1px solid var(--uf-blue);
-  background: transparent;
-  color: var(--uf-blue);
-  font-weight: 600;
 }
 
 .plan {
@@ -88,7 +80,6 @@
     flex-basis: 100%;
   }
 
-  .secondary,
   .plan,
   .primary {
     flex: 1;

@@ -51,3 +51,15 @@ export function planningWindow(start: string, includeSummer: boolean, target?: s
   }
   return out;
 }
+
+/** The academic year a term belongs to, by its fall: Fall 2026, Spring 2027, and Summer 2027 are all 2026. */
+export function academicYear(code: string): number {
+  const year = 2000 + Number(code.slice(1, 3));
+  return code[3] === "8" ? year : year - 1;
+}
+
+/** Fall, spring, and summer codes of the academic year starting in fall `year`. */
+export function academicYearTerms(year: number): string[] {
+  const yy = (y: number) => String(y % 100).padStart(2, "0");
+  return [`2${yy(year)}8`, `2${yy(year + 1)}1`, `2${yy(year + 1)}5`];
+}

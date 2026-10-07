@@ -86,6 +86,8 @@ export interface SearchResult {
 export interface PlannedCourse {
   courseCode: string;
   classNumber: number;
+  /** Color slot, kept for as long as the course is in the plan. */
+  color: number;
 }
 
 // --- Degree planner (server/internal/planner) ---

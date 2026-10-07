@@ -1,0 +1,59 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.page h1 {
+  margin: 12px 0 4px;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+
+.page h2 {
+  margin: 32px 0 6px;
+  font-size: 19px;
+  color: var(--uf-blue);
+}
+
+.page h3 {
+  margin: 18px 0 4px;
+  font-size: 15px;
+}
+
+.page p,
+.page ul {
+  margin: 6px 0;
+}
+
+.page ul {
+  padding-left: 20px;
+}
+
+.page code {
+  font: 500 13px var(--font-mono);
+}
+
+.page a {
+  color: var(--uf-blue);
+}
+
+.back {
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.callout {
+  padding: 12px 14px;
+  border: 1px solid var(--line-cool);
+  border-radius: 10px;
+  background: var(--tint-blue);
+}

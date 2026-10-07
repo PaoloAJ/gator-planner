@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchCourse, fetchTerms } from "@/lib/api";
 import {
   averageRating,
+  bestSection,
   conflictsWith,
   findSection,
+  freeColor,
   rankSections,
   resolvePlan,
   totalCredits,
 } from "@/lib/schedule";
+import { academicYear } from "@/lib/terms";
 import type { Course, PlannedCourse, Term } from "@/lib/types";
 import { TopBar } from "./TopBar";
 import { StatusBar } from "./StatusBar";
 import { CourseList, type ListStatus } from "./CourseList";
 import { WeekGrid } from "./WeekGrid";
 import { ProfessorRail } from "./ProfessorRail";
+import { CourseSpotlight } from "./CourseSpotlight";
 import { DegreePlanner } from "./DegreePlanner";
 import styles from "./Planner.module.css";
 
@@ -24,11 +28,23 @@ interface Pending {
   classNumber: number;
 }
 
+const ENTRY_YEAR_KEY = "gatorplan.entryYear";
+
+function storedEntryYear(): number | null {
+  try {
+    const v = Number(localStorage.getItem(ENTRY_YEAR_KEY));
+    return Number.isInteger(v) && v > 2000 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export function Planner() {
   const [terms, setTerms] = useState<Term[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [termCode, setTermCode] = useState<string | null>(null);
+  const [entryYear, setEntryYear] = useState<number | null>(null);
 
   // Every session starts with an empty plan.
   const [plans, setPlans] = useState<Record<string, PlannedCourse[]>>({});
@@ -37,11 +53,14 @@ export function Planner() {
   const [courses, setCourses] = useState<Record<string, Record<string, Course>>>({});
   const coursesRef = useRef(courses);
   const [view, setView] = useState<"week" | "degree">("week");
+  const showDegreeView = useCallback(() => setView("degree"), []);
   const [listStatus, setListStatus] = useState<ListStatus | null>(null);
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [hoveredClass, setHoveredClass] = useState<number | null>(null);
+  // The add-course dialog; swapFor names the planned course a pick replaces.
+  const [spotlight, setSpotlight] = useState<{ swapFor: string | null } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,13 +69,28 @@ export function Planner() {
       .then((ts) => {
         setTerms(ts);
         setLoadError(null);
-        setTermCode((ts.find((t) => t.suggested) ?? ts.at(-1))?.code ?? null);
+        const suggested = (ts.find((t) => t.suggested) ?? ts.at(-1))?.code ?? null;
+        setTermCode(suggested);
+        // Until the student says otherwise, assume the suggested term is in their first year.
+        setEntryYear(storedEntryYear() ?? (suggested ? academicYear(suggested) : null));
       })
       .catch((e: Error) => {
         if (!ctl.signal.aborted) setLoadError(e.message);
       });
     return () => ctl.abort();
   }, [reloadKey]);
+
+  // ⌘K / Ctrl+K opens the add-course dialog from anywhere.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSpotlight((s) => s ?? { swapFor: null });
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const term = terms?.find((t) => t.code === termCode) ?? null;
   const plan = (termCode && plans[termCode]) || [];
@@ -74,6 +108,7 @@ export function Planner() {
     selected && previewClass != null && previewClass !== selected.section.classNumber
       ? findSection(selected.course, previewClass)
       : undefined;
+  const preview = selected && previewSection ? { ...selected, section: previewSection } : null;
 
   const ranked = selected ? rankSections(selected.course) : [];
   const conflicts = selected
@@ -87,6 +122,16 @@ export function Planner() {
     setPending(null);
     setHoveredClass(null);
     setListStatus(null);
+    setSpotlight(null);
+  }
+
+  function changeEntryYear(year: number) {
+    setEntryYear(year);
+    try {
+      localStorage.setItem(ENTRY_YEAR_KEY, String(year));
+    } catch {
+      // Private mode or storage blocked: the choice lasts for this visit only.
+    }
   }
 
   function selectCourse(code: string | null) {
@@ -105,6 +150,26 @@ export function Planner() {
     setPending(null);
   }
 
+  /** Fetches (or reuses) a course for term `t`; null, with a status shown, if it can't be planned. */
+  async function loadCourse(t: string, code: string, busy: string): Promise<Course | null> {
+    setListStatus({ kind: "busy", text: busy });
+    let course: Course;
+    try {
+      course = coursesRef.current[t]?.[code] ?? (await fetchCourse(t, code));
+    } catch (e) {
+      setListStatus({ kind: "error", text: `Couldn't load ${code}: ${(e as Error).message}` });
+      return null;
+    }
+    if (course.sections.length === 0) {
+      setListStatus({ kind: "error", text: `${code} has no sections this term.` });
+      return null;
+    }
+    coursesRef.current = { ...coursesRef.current, [t]: { ...coursesRef.current[t], [code]: course } };
+    setCourses(coursesRef.current);
+    setListStatus(null);
+    return course;
+  }
+
   /** Adds a course to a term's plan; returns false if it couldn't be added. */
   async function addCourse(code: string, target?: string): Promise<boolean> {
     const t = target ?? termCode;
@@ -114,34 +179,51 @@ export function Planner() {
       return true;
     }
 
-    setListStatus({ kind: "busy", text: `Adding ${code}…` });
-    let course: Course;
-    try {
-      course = coursesRef.current[t]?.[code] ?? (await fetchCourse(t, code));
-    } catch (e) {
-      setListStatus({ kind: "error", text: `Couldn't load ${code}: ${(e as Error).message}` });
-      return false;
-    }
-    if (course.sections.length === 0) {
-      setListStatus({ kind: "error", text: `${code} has no sections this term.` });
-      return false;
-    }
-
-    coursesRef.current = { ...coursesRef.current, [t]: { ...coursesRef.current[t], [code]: course } };
+    const course = await loadCourse(t, code, `Adding ${code}…`);
+    if (!course) return false;
     const known = coursesRef.current[t];
-    setCourses(coursesRef.current);
     setPlans((prev) => {
       const current = prev[t] ?? [];
       if (current.some((p) => p.courseCode === code)) return prev;
-      // Default to the best-rated section that fits; fall back to the best-rated one.
-      const planned = resolvePlan(current, known);
-      const sections = rankSections(course);
-      const fits = sections.find((s) => conflictsWith(s, planned, code).length === 0);
-      return { ...prev, [t]: [...current, { courseCode: code, classNumber: (fits ?? sections[0]).classNumber }] };
+      const section = bestSection(course, resolvePlan(current, known));
+      return { ...prev, [t]: [...current, { courseCode: code, classNumber: section.classNumber, color: freeColor(current) }] };
     });
-    setListStatus(null);
     selectCourse(code);
     return true;
+  }
+
+  function startSwap(code: string) {
+    selectCourse(code);
+    setSpotlight({ swapFor: code });
+  }
+
+  /** Replaces a planned course with another, keeping its place and color. */
+  async function swapCourse(oldCode: string, newCode: string) {
+    const t = termCode;
+    if (!t) return;
+    if (plan.some((p) => p.courseCode === newCode)) {
+      setListStatus({ kind: "error", text: `${newCode} is already in your plan.` });
+      return;
+    }
+
+    const course = await loadCourse(t, newCode, `Swapping ${oldCode} for ${newCode}…`);
+    if (!course) return;
+    const known = coursesRef.current[t];
+    setPlans((prev) => {
+      const current = prev[t] ?? [];
+      const others = resolvePlan(
+        current.filter((p) => p.courseCode !== oldCode),
+        known,
+      );
+      const section = bestSection(course, others);
+      return {
+        ...prev,
+        [t]: current.map((p) =>
+          p.courseCode === oldCode ? { courseCode: newCode, classNumber: section.classNumber, color: p.color } : p,
+        ),
+      };
+    });
+    selectCourse(newCode);
   }
 
   // Loads one term of a degree plan into the week planner.
@@ -175,6 +257,8 @@ export function Planner() {
         terms={tabs}
         activeTerm={termCode}
         onSelectTerm={selectTerm}
+        entryYear={entryYear}
+        onEntryYearChange={changeEntryYear}
         plannedCodes={new Set(plan.map((p) => p.courseCode))}
         onAddCourse={addCourse}
         searchRef={searchRef}
@@ -186,6 +270,7 @@ export function Planner() {
             availableTerms={new Set(terms.map((t) => t.code))}
             onOpenTerm={openPlanTerm}
             onBack={() => setView("week")}
+            onImport={showDegreeView}
           />
         </div>
       )}
@@ -208,17 +293,21 @@ export function Planner() {
               status={listStatus}
               onSelect={selectCourse}
               onRemove={removeCourse}
-              onAdd={() => searchRef.current?.focus()}
+              onSwap={startSwap}
+              onAdd={() => setSpotlight({ swapFor: null })}
             />
             <WeekGrid
+              termCode={term.code}
               entries={entries}
               selectedCode={selectedCode}
-              preview={selected && previewSection ? { course: selected.course, section: previewSection } : null}
-              emptyHint={`Search for a course to start your ${term.label} schedule.`}
+              preview={preview}
+              emptyHint={`Press ⌘K or + Add course to start your ${term.label} schedule.`}
               onSelect={selectCourse}
             />
             <ProfessorRail
+              termCode={term.code}
               course={selected?.course ?? null}
+              color={selected?.color ?? 0}
               sections={ranked}
               currentClass={selected?.section.classNumber ?? null}
               pendingClass={pendingClass ?? null}
@@ -229,6 +318,16 @@ export function Planner() {
               onSwap={swapToPending}
             />
           </main>
+          {spotlight && (
+            <CourseSpotlight
+              termCode={term.code}
+              termLabel={term.label}
+              plannedCodes={new Set(plan.map((p) => p.courseCode))}
+              swapFor={spotlight.swapFor}
+              onChoose={(code) => (spotlight.swapFor ? swapCourse(spotlight.swapFor, code) : addCourse(code))}
+              onClose={() => setSpotlight(null)}
+            />
+          )}
         </>
       ) : (
         <main className={styles.message}>

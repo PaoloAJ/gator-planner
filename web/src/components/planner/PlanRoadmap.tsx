@@ -122,7 +122,7 @@ export function PlanRoadmap({ plan, availableTerms, onOpenTerm, onAdjust, onStar
       </div>
 
       <div className={styles.notesGrid}>
-        {(plan.preferencesApplied || plan.answers?.length) && (
+        {(plan.preferencesApplied || (plan.answers?.length ?? 0) > 0) && (
           <section>
             <h3>How your preferences were used</h3>
             {plan.preferencesApplied && <p>{plan.preferencesApplied}</p>}

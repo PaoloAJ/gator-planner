@@ -176,7 +176,7 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  padding: 24px 28px;
+  padding: 20px 24px;
   background: #f7f5f0;
   overflow-y: auto;
 }
@@ -972,4 +972,25 @@
   .roadmapHead {
     flex-wrap: wrap;
   }
+}
+
+.notice {
+  max-width: 760px;
+  margin: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--line-cool);
+  border-radius: 10px;
+  background: var(--tint-blue);
+  color: var(--uf-blue-dark);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.privacy a {
+  color: inherit;
+}
+
+.howto p {
+  margin: 8px 0 0;
+  line-height: 1.55;
 }

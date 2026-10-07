@@ -1,0 +1,190 @@
+:root {
+  --uf-blue: #0021a5;
+  --uf-orange: #fa4616;
+  --ink: #16181d;
+  --muted: #5e6470;
+  --line: #e3e0d8;
+  --paper: #fbfaf7;
+  --surface: #ffffff;
+  --tint-blue: #e6eaf7;
+  --bad: #97361f;
+  --bad-bg: #fdf1ed;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --uf-blue: #9fb0ff;
+    --ink: #ecedf0;
+    --muted: #a6abb5;
+    --line: #34363d;
+    --paper: #1b1c20;
+    --surface: #24262b;
+    --tint-blue: #262d4a;
+    --bad: #ffb4a1;
+    --bad-bg: #3a201a;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  margin: 0;
+  padding: 14px 16px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.tag {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.lede {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.facts {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.facts li {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.fine {
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+a {
+  color: var(--uf-blue);
+}
+
+.card {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.programs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.programs span {
+  margin-right: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--uf-blue);
+}
+
+.meta {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+button {
+  padding: 8px 14px;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--uf-orange);
+  color: #fff;
+}
+
+.secondary {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--uf-orange);
+  outline-offset: 2px;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  margin: 4px auto 6px;
+  border: 3px solid var(--tint-blue);
+  border-top-color: var(--uf-blue);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+}

@@ -1,8 +1,8 @@
 .bar {
   display: flex;
   align-items: stretch;
-  gap: 28px;
-  height: 64px;
+  gap: 24px;
+  height: 56px;
   padding: 0 24px;
   background: var(--uf-blue);
   color: #fff;
@@ -36,18 +36,29 @@
 .tabs {
   display: flex;
   align-items: stretch;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
+.year {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+
+.year[data-open] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.yearTab,
 .tab {
   display: flex;
   flex-direction: column;
   justify-content: center;
   flex: none;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
@@ -56,40 +67,81 @@
   cursor: pointer;
 }
 
-.tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+.yearTab:hover,
+.tab:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.tab[data-active] {
-  border-bottom-color: var(--uf-orange);
-  background: rgba(255, 255, 255, 0.08);
+/* The year holding the semester on screen, while another year is open. */
+.yearTab[data-current] {
+  border-bottom-color: rgba(250, 70, 22, 0.5);
 }
 
+.year[data-open] .yearTab {
+  border-bottom-color: transparent;
+}
+
+.yearTab:focus-visible,
 .tab:focus-visible {
   outline-offset: -2px;
 }
 
+.semesters {
+  display: flex;
+  align-items: stretch;
+  padding-left: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.tab {
+  padding: 0 12px;
+}
+
+.tab[data-active] {
+  border-bottom-color: var(--uf-orange);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .tabName {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .tabCredits {
-  font: 500 11px var(--font-mono);
+  font: 500 10.5px var(--font-mono);
+  color: var(--on-blue-muted);
+  white-space: nowrap;
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 0 4px 0 12px;
+  font-size: 11.5px;
   color: var(--on-blue-muted);
 }
 
-.addTab {
-  display: flex;
-  align-items: center;
-  flex: none;
-  padding: 0 12px;
-  border: 0;
+.entry select {
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
   background: transparent;
-  color: var(--on-blue-muted);
-  font-size: 18px;
-  cursor: not-allowed;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.entry option {
+  color: var(--ink);
 }
 
 .spacer {
@@ -120,7 +172,7 @@
   }
 
   .brand {
-    height: 56px;
+    height: 52px;
   }
 
   .tabs {

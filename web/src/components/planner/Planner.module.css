@@ -6,7 +6,7 @@
 
 .workspace {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr) 330px;
+  grid-template-columns: 250px minmax(0, 1fr) 310px;
   flex: 1;
 }
 
@@ -17,6 +17,7 @@
 
   .workspace {
     min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .workspace > * {
@@ -26,7 +27,7 @@
 
 @media (max-width: 1100px) {
   .workspace {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 230px minmax(0, 1fr);
     align-content: start;
   }
 
