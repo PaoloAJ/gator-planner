@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐊 GatorPlan
+# 🐊 GatorPlanner
 
 **A fast, conflict-aware class scheduler and AI degree planner for University of Florida students.**
 
